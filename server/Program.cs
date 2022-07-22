@@ -8,10 +8,9 @@ Console.CancelKeyPress += new ConsoleCancelEventHandler((object? sender, Console
 
 server.setRoute("/", (request, response) =>
 {
-    response.StatusCode = 200;
-    response.ContentType = "application/json";
-    byte[] buffer = System.Text.Encoding.UTF8.GetBytes("{\"status\": \"ok\"}");
-    response.OutputStream.Write(buffer, 0, buffer.Length);
+    response.setStatusCode(200);
+    response.setContentType("application/json");
+    response.write("{\"status\": \"ok\"}");
 });
 
 server.setRoute("/error", (request, response) =>

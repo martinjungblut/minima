@@ -4,7 +4,7 @@ public class HttpRoutedServer
 {
     private HttpListener listener;
     private string prefix;
-    private IDictionary<String, Action<HttpListenerRequest, HttpListenerResponse>> routes;
+    private IDictionary<String, Action<HttpListenerRequest, HttpWrappedResponse>> routes;
 
     public HttpRoutedServer(int port)
     {
@@ -13,7 +13,7 @@ public class HttpRoutedServer
         this.listener = new HttpListener();
         this.listener.Prefixes.Add(this.prefix);
 
-        this.routes = new Dictionary<String, Action<HttpListenerRequest, HttpListenerResponse>>();
+        this.routes = new Dictionary<String, Action<HttpListenerRequest, HttpWrappedResponse>>();
     }
 
     public void start()
@@ -25,47 +25,37 @@ public class HttpRoutedServer
         {
             HttpListenerContext context = listener.GetContext();
             HttpListenerRequest request = context.Request;
-            HttpListenerResponse response = context.Response;
+            HttpWrappedResponse response = new HttpWrappedResponse(context.Response);
+
             Console.WriteLine(String.Format("Got a new request: {0} {1} {2}", request.HttpMethod, request.Url, request.RawUrl));
 
-            bool missingRoute = true;
-
-            if (request.RawUrl != null)
+            if (request.RawUrl == null)
+            {
+                Console.WriteLine(String.Format("Couldn't find request path, cannot determine route"));
+                response.setStateDefaultNotFound();
+            }
+            else
             {
                 try
                 {
                     var handler = routes[request.RawUrl];
-                    missingRoute = false;
                     try
                     {
                         handler(request, response);
                     }
                     catch (Exception e)
                     {
-                        response.ContentType = "text/plain";
-                        response.StatusCode = 500;
-
-                        if (e.StackTrace != null)
-                        {
-                            byte[] buffer = System.Text.Encoding.UTF8.GetBytes(e.StackTrace);
-                            response.OutputStream.Write(buffer, 0, buffer.Length);
-                        }
+                        response.setStateException(e);
                     }
                 }
-                catch (KeyNotFoundException) { }
+                catch (KeyNotFoundException)
+                {
+                    Console.WriteLine(String.Format("Couldn't find route for request path: {0}", request.RawUrl));
+                    response.setStateDefaultNotFound();
+                }
             }
 
-            if (missingRoute)
-            {
-                Console.WriteLine(String.Format("Couldn't find route for path: {0}", request.RawUrl));
-
-                response.ContentType = "text/plain";
-                response.StatusCode = 404;
-                byte[] buffer = System.Text.Encoding.UTF8.GetBytes("not found");
-                response.OutputStream.Write(buffer, 0, buffer.Length);
-            }
-
-            response.OutputStream.Close();
+            response.close();
         }
     }
 
@@ -76,7 +66,7 @@ public class HttpRoutedServer
         Console.WriteLine("Server stopped");
     }
 
-    public bool setRoute(string rawUrl, Action<HttpListenerRequest, HttpListenerResponse> handler)
+    public bool setRoute(string rawUrl, Action<HttpListenerRequest, HttpWrappedResponse> handler)
     {
         try
         {
