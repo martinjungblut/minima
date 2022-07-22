@@ -1,24 +1,24 @@
 using System.Net;
 
-public class MinimaServer
+public class HttpRoutedServer
 {
     private HttpListener listener;
-    private int port;
+    private string prefix;
     private IDictionary<String, Action<HttpListenerRequest, HttpListenerResponse>> routes;
 
-    public MinimaServer(int port)
+    public HttpRoutedServer(int port)
     {
-        this.port = port;
+        this.prefix = String.Format("http://*:{0}/", port);
 
         this.listener = new HttpListener();
-        this.listener.Prefixes.Add(String.Format("http://*:{0}/", port));
+        this.listener.Prefixes.Add(this.prefix);
 
         this.routes = new Dictionary<String, Action<HttpListenerRequest, HttpListenerResponse>>();
     }
 
     public void start()
     {
-        Console.WriteLine(String.Format("Starting server at port {0}...", this.port));
+        Console.WriteLine(String.Format("Starting server at prefix {0}", this.prefix));
         listener.Start();
 
         while (listener.IsListening)
@@ -69,6 +69,13 @@ public class MinimaServer
         }
     }
 
+    public void stop()
+    {
+        Console.WriteLine("Stopping server");
+        listener.Stop();
+        Console.WriteLine("Server stopped");
+    }
+
     public bool setRoute(string rawUrl, Action<HttpListenerRequest, HttpListenerResponse> handler)
     {
         try
@@ -80,18 +87,5 @@ public class MinimaServer
         {
             return false;
         }
-    }
-
-    public void stop()
-    {
-        Console.WriteLine("Stopping server...");
-        listener.Stop();
-        Console.WriteLine("Server stopped.");
-    }
-
-    public void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
-    {
-        this.stop();
-        Console.WriteLine("Exiting...");
     }
 }

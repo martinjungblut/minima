@@ -1,6 +1,10 @@
-﻿MinimaServer server = new MinimaServer(8080);
+﻿HttpRoutedServer server = new HttpRoutedServer(8080);
 
-Console.CancelKeyPress += new ConsoleCancelEventHandler(server.Console_CancelKeyPress);
+Console.CancelKeyPress += new ConsoleCancelEventHandler((object? sender, ConsoleCancelEventArgs e) =>
+{
+    server.stop();
+    Console.WriteLine("Exiting");
+});
 
 server.setRoute("/", (request, response) =>
 {
